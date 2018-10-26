@@ -54,206 +54,215 @@ type
     class function Guid<T: IInterface>: TGUID; static;
   end;
 
-  TModuleManager = class
-  private
-    class var
-      FInstance:  TModuleManager;
-  private
-    FModules: TDictionary<TGUID, TModule>;
-  public
-    class constructor Create;
-    class destructor Destroy;
-    class property Instance: TModuleManager read FInstance;
-  public
-    constructor Create;
-    destructor Destroy; override;
+  TModuleManager = class  
+	private  
+		class var FInstance:  TModuleManager;  
+	private  
+		// Factory for TModule by TGUID key.
+		FModules: TDictionary<TGUID, TModule>;  
+	public  
+		// Minimal implementation of Singleton pattern + creating an instance only in case of using.
+		class constructor Create;  
+		class destructor Destroy;  
+		class property Instance: TModuleManager read FInstance;  
+	public  
+		constructor Create;  
+		destructor Destroy; override;  
 
-    procedure RegisterModule(const AServiceGUID: TGUID; const AType: TClass;
-       AInstance: TObject = nil; AIsOwner: Boolean = true); overload;
-    procedure RegisterModule<T: IInterface>(const AType: TClass;
-       AInstance: TObject = nil; AIsOwner: Boolean = true); overload;
+		procedure RegisterModule(const AServiceGUID: TGUID; const AType: TClass; AInstance: TObject = nil; AIsOwner: Boolean = true); overload;  
+		procedure RegisterModule<T: IInterface>(const AType: TClass; AInstance: TObject = nil; AIsOwner: Boolean = true); overload;  
 
-    procedure UnregisterModule(const AServiceGUID: TGUID); overload;
-    procedure UnregisterModule<T: IInterface>; overload;
+		procedure UnregisterModule(const AServiceGUID: TGUID); overload;  
+		procedure UnregisterModule<T: IInterface>; overload;  
 
-    procedure RemoveModule(const AServiceGUID: TGUID); overload;
-    procedure RemoveModule<T: IInterface>; overload;
+		// Forced removal of an instantiated object with a destructor call.
+		procedure RemoveModule(const AServiceGUID: TGUID); overload;  
+		procedure RemoveModule<T: IInterface>; overload;  
 
-    procedure RemoveModuleRef(const AServiceGUID: TGUID); overload;
-    procedure RemoveModuleRef<T: IInterface>; overload;
+		// Deleting only references to the instantiated object without calling the destructor.
+		procedure RemoveModuleRef(const AServiceGUID: TGUID); overload;  
+		procedure RemoveModuleRef<T: IInterface>; overload;  
 
-    procedure UpdateModule(const AServiceGUID: TGUID; AInstance: TObject); overload;
-    procedure UpdateModule<T: IInterface>(AInstance: TObject); overload;
+		// Replace the current instantiated object.
+		procedure UpdateModule(const AServiceGUID: TGUID; AInstance: TObject); overload;  
+		procedure UpdateModule<T: IInterface>(AInstance: TObject); overload;  
 
-    function GetModule(const AServiceGUID: TGUID): TObject; overload;
-    function GetModule<T: IInterface>: T; overload;
-    function GetModule<T: IInterface>(const AServiceGUID: TGUID): T; overload;
+		// Direct receiving of the created instantiated object as TObject or T: IInterface.
+		function GetModule(const AServiceGUID: TGUID): TObject; overload;  
+		function GetModule<T: IInterface>: T; overload;  
+		function GetModule<T: IInterface>(const AServiceGUID: TGUID): T; overload;  
 
-    function SupportsModule(const AServiceGUID: TGUID): Boolean; overload;
-    function SupportsModule<T: IInterface>: Boolean; overload;
-    function SupportsModule<T: IInterface>(const AServiceGUID: TGUID): Boolean; overload;
+		// Check of the type registration in the Manager.
+		function SupportsModule(const AServiceGUID: TGUID): Boolean; overload;  
+		function SupportsModule<T: IInterface>: Boolean; overload;  
+		function SupportsModule<T: IInterface>(const AServiceGUID: TGUID): Boolean; overload;  
 
-    function SupportsModule(const AServiceGUID: TGUID; out AService): Boolean; overload;
-    function SupportsModule<T: IInterface>(out AService): Boolean; overload;
-    function SupportsModule(const AServiceGUID, ACastServiceGUID: TGUID; out AService): Boolean; overload;
-    function SupportsModule<T: IInterface>(const ACastServiceGUID: TGUID; out AService): Boolean; overload;
+		// The previous 2 methods all together.
+		function SupportsModule(const AServiceGUID: TGUID; out AService): Boolean; overload;  
+		function SupportsModule<T: IInterface>(out AService): Boolean; overload;  
+		function SupportsModule(const AServiceGUID, ACastServiceGUID: TGUID; out AService): Boolean; overload;  
+		function SupportsModule<T: IInterface>(const ACastServiceGUID: TGUID; out AService): Boolean; overload;  
 
-    function GetAllModules: TArray<TGUID>;
-  end;
+		// Getting a list of all registered types in the Manager.
+		function GetAllModules: TArray<TGUID>;  
+end;  
 implementation
 
 { TModuleChecker }
 
-constructor TModuleManager.Create;
-begin
-  inherited;
-    FModules := TObjectDictionary<TGUID, TModule>.Create([doOwnsValues]);
-end;
+constructor TModuleManager.Create;  
+begin  
+	inherited;  
+	FModules := TObjectDictionary<TGUID, TModule>.Create([doOwnsValues]);  
+end;  
 
-destructor TModuleManager.Destroy;
-begin
-  FreeAndNil(FModules);
-end;
+destructor TModuleManager.Destroy;  
+begin  
+	FreeAndNil(FModules);  
+	// Need update After and before events.  
+end;  
 
-function TModuleManager.GetAllModules: TArray<TGUID>;
-var
-  lList: TList<TGUID>;
-  lPair: TPair<TGUID, TModule>;
-begin
-  lList := TList<TGUID>.Create;
-  try
-    for lPair in FModules do
-      if lPair.Value.IsAlive then
-        lList.Add(lPair.Key);
-    Result := lList.ToArray;
-  finally
-    FreeAndNil(lList);
-  end;
-end;
+function TModuleManager.GetAllModules: TArray<TGUID>;  
+var  
+	lList: TList<TGUID>;  
+	lPair: TPair<TGUID, TModule>;  
+begin  
+	lList := TList<TGUID>.Create;  
+	try  
+		for lPair in FModules do  
+			if lPair.Value.IsAlive then  
+				lList.Add(lPair.Key);  
+		Result := lList.ToArray;  
+	finally  
+		FreeAndNil(lList);  
+	end;  
+end;  
 
-function TModuleManager.GetModule(const AServiceGUID: TGUID): TObject;
-begin
-  SupportsModule(AServiceGUID, Result);
-end;
+function TModuleManager.GetModule(const AServiceGUID: TGUID): TObject;  
+begin  
+	SupportsModule(AServiceGUID, Result);  
+end;  
 
-function TModuleManager.GetModule<T>: T;
-begin
-  SupportsModule(TInterfaceFakeHelper.Guid<T>, Result);
-end;
+function TModuleManager.GetModule<T>: T;  
+begin  
+	SupportsModule(TInterfaceFakeHelper.Guid<T>, Result);  
+end;  
 
-function TModuleManager.GetModule<T>(const AServiceGUID: TGUID): T;
-begin
-  SupportsModule(AServiceGUID, Result);
-end;
+function TModuleManager.GetModule<T>(const AServiceGUID: TGUID): T;  
+begin  
+	SupportsModule(AServiceGUID, Result);  
+end;  
 
-procedure TModuleManager.RegisterModule(const AServiceGUID: TGUID;
-  const AType: TClass; AInstance: TObject; AIsOwner: Boolean);
-begin
-  FModules.Add(AServiceGUID, TModuleFakeHelper.ModuleByType(AType).Create(AType, AInstance, AIsOwner));
-end;
+procedure TModuleManager.RegisterModule(const AServiceGUID: TGUID; const AType: TClass; AInstance: TObject; AIsOwner: Boolean);  
+begin  
+	FModules.Add(AServiceGUID,  
+		TModuleFakeHelper.ModuleByType(AType) // Getting the required container class.  
+		.Create( // Call a base class constructor.
+			AType // A class type to manage.  
+			, AInstance // Existing instance, optional. 
+			, AIsOwner // Existing instance, optional. 
+			, AIsOwner // Is the life cycle management required ? optional. 
+		)
+	);  
+end;  
 
-procedure TModuleManager.RegisterModule<T>(const AType: TClass;
-  AInstance: TObject; AIsOwner: Boolean);
-begin
-  RegisterModule(TInterfaceFakeHelper.Guid<T>, AType, AInstance, AIsOwner);
-end;
+procedure TModuleManager.RegisterModule<T>(const AType: TClass; AInstance: TObject; AIsOwner: Boolean);  
+begin  
+	RegisterModule(TInterfaceFakeHelper.Guid<T>, AType, AInstance, AIsOwner);  
+end;  
 
-procedure TModuleManager.RemoveModule(const AServiceGUID: TGUID);
-begin
-  if FModules.ContainsKey(AServiceGUID) then
-    FModules.Items[AServiceGUID].Remove;
-end;
+procedure TModuleManager.RemoveModule(const AServiceGUID: TGUID);  
+begin  
+	if FModules.ContainsKey(AServiceGUID) then 
+		FModules.Items[AServiceGUID].Remove;  
+end;  
 
-procedure TModuleManager.RemoveModule<T>;
-begin
-  RemoveModule(TInterfaceFakeHelper.Guid<T>);
-end;
+procedure TModuleManager.RemoveModule<T>;  
+begin  
+	RemoveModule(TInterfaceFakeHelper.Guid<T>);  
+end;  
 
-procedure TModuleManager.RemoveModuleRef(const AServiceGUID: TGUID);
-begin
-  UpdateModule(AServiceGUID, nil);
-end;
+procedure TModuleManager.RemoveModuleRef(const AServiceGUID: TGUID);  
+begin  
+	UpdateModule(AServiceGUID, nil);  
+end;  
 
-procedure TModuleManager.RemoveModuleRef<T>;
-begin
-  UpdateModule<T>(nil);
-end;
+procedure TModuleManager.RemoveModuleRef<T>;  
+begin  
+	UpdateModule<T>(nil);  
+end;  
 
-function TModuleManager.SupportsModule(const AServiceGUID: TGUID;
-  out AService): Boolean;
-begin
-  Result := SupportsModule(AServiceGUID, AServiceGUID, AService);
-end;
+function TModuleManager.SupportsModule(const AServiceGUID: TGUID; out AService): Boolean;  
+begin  
+	Result := SupportsModule(AServiceGUID, AServiceGUID, AService);  
+end;  
 
-function TModuleManager.SupportsModule(const AServiceGUID,
-  ACastServiceGUID: TGUID; out AService): Boolean;
-begin
-  Result := false;
-  Pointer(AService) := nil;
-  if FModules.ContainsKey(AServiceGUID) then
-    Result := Supports(FModules.Items[AServiceGUID].GetInstance, ACastServiceGUID, AService);
-end;
+function TModuleManager.SupportsModule(const AServiceGUID, ACastServiceGUID: TGUID; out AService): Boolean;  
+begin  
+	Result := false;  
+	Pointer(AService) := nil;  
+	if FModules.ContainsKey(AServiceGUID) then  
+		Result := Supports(FModules.Items[AServiceGUID].GetInstance, ACastServiceGUID, AService);  
+end;  
 
-function TModuleManager.SupportsModule<T>(const ACastServiceGUID: TGUID;
-  out AService): Boolean;
-begin
-  Result := SupportsModule(TInterfaceFakeHelper.Guid<T>, ACastServiceGUID, AService);
-end;
+function TModuleManager.SupportsModule<T>(const ACastServiceGUID: TGUID; out AService): Boolean;  
+begin  
+	Result := SupportsModule(TInterfaceFakeHelper.Guid<T>, ACastServiceGUID, AService);  
+end;  
 
-function TModuleManager.SupportsModule<T>(out AService): Boolean;
-begin
-  Result := SupportsModule(TInterfaceFakeHelper.Guid<T>, AService);
-end;
+function TModuleManager.SupportsModule<T>(out AService): Boolean;  
+begin  
+	Result := SupportsModule(TInterfaceFakeHelper.Guid<T>, AService);  
+end;  
 
-function TModuleManager.SupportsModule(const AServiceGUID: TGUID): Boolean;
-begin
-  Result := FModules.ContainsKey(AServiceGUID);
-end;
+function TModuleManager.SupportsModule(const AServiceGUID: TGUID): Boolean;  
+begin  
+	Result := FModules.ContainsKey(AServiceGUID);  
+end;  
 
-function TModuleManager.SupportsModule<T>(const AServiceGUID: TGUID): Boolean;
-begin
-  Result := SupportsModule(AServiceGUID) and
-    Supports(FModules.Items[AServiceGUID].ClassType, TInterfaceFakeHelper.Guid<T>);
-end;
+function TModuleManager.SupportsModule<T>(const AServiceGUID: TGUID): Boolean;  
+begin  
+	Result := SupportsModule(AServiceGUID) and  
+		Supports(FModules.Items[AServiceGUID].ClassType, TInterfaceFakeHelper.Guid<T>);  
+end;  
 
-function TModuleManager.SupportsModule<T>: Boolean;
-begin
-  Result := SupportsModule(TInterfaceFakeHelper.Guid<T>);
-end;
+function TModuleManager.SupportsModule<T>: Boolean;  
+begin  
+	Result := SupportsModule(TInterfaceFakeHelper.Guid<T>);  
+end;  
 
-procedure TModuleManager.UnregisterModule(const AServiceGUID: TGUID);
-begin
-  FModules.Remove(AServiceGUID);
-end;
+procedure TModuleManager.UnregisterModule(const AServiceGUID: TGUID);  
+begin  
+	FModules.Remove(AServiceGUID);  
+end;  
 
-procedure TModuleManager.UnregisterModule<T>;
-begin
-  UnregisterModule(TInterfaceFakeHelper.Guid<T>);
-end;
+procedure TModuleManager.UnregisterModule<T>;  
+begin  
+	UnregisterModule(TInterfaceFakeHelper.Guid<T>);  
+end;  
 
-procedure TModuleManager.UpdateModule(const AServiceGUID: TGUID;
-  AInstance: TObject);
-begin
-  if FModules.ContainsKey(AServiceGUID) then
-    FModules.Items[AServiceGUID].Update(AInstance);
-end;
+procedure TModuleManager.UpdateModule(const AServiceGUID: TGUID; AInstance: TObject);  
+begin  
+	if FModules.ContainsKey(AServiceGUID) then  
+		FModules.Items[AServiceGUID].Update(AInstance);  
+end;  
 
-procedure TModuleManager.UpdateModule<T>(AInstance: TObject);
-begin
-  UpdateModule(TInterfaceFakeHelper.Guid<T>, AInstance);
-end;
+procedure TModuleManager.UpdateModule<T>(AInstance: TObject);  
+begin  
+	UpdateModule(TInterfaceFakeHelper.Guid<T>, AInstance);  
+end;  
 
-class constructor TModuleManager.Create;
-begin
-  if (FInstance = nil) then
-  begin
-    FInstance := TModuleManager.Create;
-  end;
-end;
+class constructor TModuleManager.Create;  
+begin  
+	if (FInstance = nil) then  
+	begin  
+		FInstance := TModuleManager.Create;  
+	end;  
+end;  
 
-class destructor TModuleManager.Destroy;
-begin
-  FreeAndNil(FInstance);
+class destructor TModuleManager.Destroy;  
+begin  
+	FreeAndNil(FInstance);  
 end;
 
 { TModule }
